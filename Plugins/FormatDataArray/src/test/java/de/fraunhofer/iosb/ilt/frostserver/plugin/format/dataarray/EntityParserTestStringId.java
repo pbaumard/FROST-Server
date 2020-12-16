@@ -23,6 +23,7 @@ import de.fraunhofer.iosb.ilt.frostserver.model.ModelRegistry;
 import de.fraunhofer.iosb.ilt.frostserver.model.core.Entity;
 import de.fraunhofer.iosb.ilt.frostserver.model.core.IdString;
 import static de.fraunhofer.iosb.ilt.frostserver.plugin.format.dataarray.DataArrayValue.LIST_OF_DATAARRAYVALUE;
+import de.fraunhofer.iosb.ilt.frostserver.plugin.multidatastream.PluginMultiDatastream;
 import de.fraunhofer.iosb.ilt.frostserver.query.QueryDefaults;
 import de.fraunhofer.iosb.ilt.frostserver.settings.CoreSettings;
 import java.io.IOException;
@@ -42,6 +43,7 @@ public class EntityParserTestStringId {
     private static CoreSettings coreSettings;
     private static QueryDefaults queryDefaults;
     private static ModelRegistry modelRegistry;
+    private static PluginMultiDatastream pluginMultiDatastream;
 
     @BeforeClass
     public static void initClass() {
@@ -51,6 +53,9 @@ public class EntityParserTestStringId {
             modelRegistry.setIdClass(IdString.class);
             queryDefaults = coreSettings.getQueryDefaults();
             queryDefaults.setUseAbsoluteNavigationLinks(false);
+            pluginMultiDatastream = new PluginMultiDatastream();
+            pluginMultiDatastream.init(coreSettings);
+            coreSettings.getPluginManager().registerPlugin(pluginMultiDatastream);
             coreSettings.getPluginManager().initPlugins(coreSettings, null);
         }
     }
@@ -74,7 +79,7 @@ public class EntityParserTestStringId {
 
         Entity ds1 = new DefaultEntity(modelRegistry.DATASTREAM).setId(new IdString("A"));
 
-        DataArrayValue dav1 = new DataArrayValue(ds1, components, modelRegistry);
+        DataArrayValue dav1 = new DataArrayValue(ds1, components, coreSettings);
         dav1.newItemList()
                 .addItemToTail("2010-12-23T10:20:00-0700")
                 .addItemToTail(20)
@@ -86,7 +91,7 @@ public class EntityParserTestStringId {
 
         Entity ds2 = new DefaultEntity(modelRegistry.DATASTREAM).setId(new IdString("B"));
 
-        DataArrayValue dav2 = new DataArrayValue(ds2, components, modelRegistry);
+        DataArrayValue dav2 = new DataArrayValue(ds2, components, coreSettings);
         dav2.newItemList()
                 .addItemToTail("2010-12-23T10:20:00-0700")
                 .addItemToTail(65)
@@ -96,9 +101,9 @@ public class EntityParserTestStringId {
                 .addItemToTail(60)
                 .addItemToTail("D");
 
-        Entity mds1 = new DefaultEntity(modelRegistry.MULTI_DATASTREAM).setId(new IdString("A"));
+        Entity mds1 = new DefaultEntity(pluginMultiDatastream.MULTI_DATASTREAM).setId(new IdString("A"));
 
-        DataArrayValue dav3 = new DataArrayValue(mds1, components, modelRegistry);
+        DataArrayValue dav3 = new DataArrayValue(mds1, components, coreSettings);
         dav3.newItemList()
                 .addItemToTail("2010-12-23T10:20:00-0700")
                 .addItemToTail(65)

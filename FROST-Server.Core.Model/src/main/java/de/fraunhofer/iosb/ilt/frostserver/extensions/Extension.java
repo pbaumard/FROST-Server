@@ -33,9 +33,6 @@ public enum Extension {
             "http://www.opengis.net/spec/iot_sensing/1.1/req/request-data",
             "http://www.opengis.net/spec/iot_sensing/1.1/req/create-update-delete"
     ),
-    MULTI_DATASTREAM(
-            "http://www.opengis.net/spec/iot_sensing/1.1/req/multi-datastream"
-    ),
     MQTT(
             "http://www.opengis.net/spec/iot_sensing/1.1/req/create-observations-via-mqtt/observations-creation",
             "http://www.opengis.net/spec/iot_sensing/1.1/req/receive-updates-via-mqtt/receive-updates"
