@@ -14,41 +14,6 @@
 -- You should have received a copy of the GNU Lesser General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
--- ---------------------------------------
--- Safe cast function from jsonb to numeric.
--- Returns NULL for inputs that are not json numbers.
--- ---------------------------------------
-CREATE OR REPLACE FUNCTION safe_cast_to_numeric(v_input jsonb)
-RETURNS NUMERIC AS $$
-DECLARE v_num_value NUMERIC DEFAULT NULL;
-BEGIN
-    IF jsonb_typeof(v_input) = 'number' THEN
-        RETURN (v_input#>>'{}')::numeric;
-    ELSE
-        RETURN NULL;
-    END IF;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-
-
--- ---------------------------------------
--- Safe cast function from jsonb to boolean.
--- Returns NULL for inputs that are not json booleans.
--- ---------------------------------------
-CREATE OR REPLACE FUNCTION safe_cast_to_boolean(v_input jsonb)
-RETURNS BOOLEAN AS $$
-DECLARE v_bool_value BOOLEAN DEFAULT NULL;
-BEGIN
-    IF jsonb_typeof(v_input) = 'boolean' THEN
-        RETURN (v_input#>>'{}')::boolean;
-    ELSE
-        RETURN NULL;
-    END IF;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-
-
 -- ---------------------------------------
 -- Trigger: datastreams_actualization_insert on OBSERVATIONS
 -- ---------------------------------------
@@ -68,8 +33,8 @@ declare
 "MDS_ROW" "MULTI_DATASTREAMS"%rowtype;
 begin
 
-if (NEW."DATASTREAM_ID" is not null) 
-then 
+if (NEW."DATASTREAM_ID" is not null)
+then
 	select * into "DS_ROW" from "DATASTREAMS" where "DATASTREAMS"."ID"=NEW."DATASTREAM_ID";
 	if (NEW."PHENOMENON_TIME_START"<"DS_ROW"."PHENOMENON_TIME_START" or "DS_ROW"."PHENOMENON_TIME_START" is null) then
 		update "DATASTREAMS" set "PHENOMENON_TIME_START" = NEW."PHENOMENON_TIME_START" where "DATASTREAMS"."ID" = "DS_ROW"."ID";
@@ -88,8 +53,8 @@ then
 	update "DATASTREAMS" SET "OBSERVED_AREA" = ST_ConvexHull(ST_Collect("OBSERVED_AREA", (select "GEOM" from "FEATURES" where "ID"=NEW."FEATURE_ID"))) where "DATASTREAMS"."ID"=NEW."DATASTREAM_ID";
 end if;
 
-if (NEW."MULTI_DATASTREAM_ID" is not null) 
-then 
+if (NEW."MULTI_DATASTREAM_ID" is not null)
+then
 	select * into "MDS_ROW" from "MULTI_DATASTREAMS" where "MULTI_DATASTREAMS"."ID"=NEW."MULTI_DATASTREAM_ID";
 	if (NEW."PHENOMENON_TIME_START"<"MDS_ROW"."PHENOMENON_TIME_START" or "MDS_ROW"."PHENOMENON_TIME_START" is null) then
 		update "MULTI_DATASTREAMS" set "PHENOMENON_TIME_START" = NEW."PHENOMENON_TIME_START" where "MULTI_DATASTREAMS"."ID" = "MDS_ROW"."ID";
@@ -135,7 +100,7 @@ drop trigger if exists datastreams_actualization_update ON "OBSERVATIONS";
 --
 -- This function also updates multidatastreams. Updated fields are:
 -- PHENOMENON_TIME_START,PHENOMENON_TIME_END,RESULT_TIME_START,RESULT_TIME_END.
--- Warning: OBSERVED_AREA not taken into account. 
+-- Warning: OBSERVED_AREA not taken into account.
 -- ---------------------------------------
 create or replace function datastreams_update_update()
   returns trigger as
@@ -145,8 +110,8 @@ declare
 "MDS_ROW" "MULTI_DATASTREAMS"%rowtype;
 begin
 
-if (NEW."DATASTREAM_ID" is not null) 
-then 
+if (NEW."DATASTREAM_ID" is not null)
+then
 	if (NEW."PHENOMENON_TIME_START" != OLD."PHENOMENON_TIME_START" or NEW."PHENOMENON_TIME_END" != OLD."PHENOMENON_TIME_END") then
 		for "DS_ROW" in select * from "DATASTREAMS" where "ID"=NEW."DATASTREAM_ID"
 		loop
@@ -199,8 +164,8 @@ then
 	end if;
 end if;
 
-if (NEW."MULTI_DATASTREAM_ID" is not null) 
-then 
+if (NEW."MULTI_DATASTREAM_ID" is not null)
+then
 	if (NEW."PHENOMENON_TIME_START" != OLD."PHENOMENON_TIME_START" or NEW."PHENOMENON_TIME_END" != OLD."PHENOMENON_TIME_END") then
 		select * into "MDS_ROW" from "MULTI_DATASTREAMS" where "MULTI_DATASTREAMS"."ID"=NEW."MULTI_DATASTREAM_ID";
 		
@@ -279,7 +244,7 @@ drop trigger if exists datastreams_actualization_delete ON "OBSERVATIONS";
 --
 -- This function also updates multidatastreams. Updated fields are:
 -- PHENOMENON_TIME_START,PHENOMENON_TIME_END,RESULT_TIME_START,RESULT_TIME_END.
--- Warning: OBSERVED_AREA not taken into account. 
+-- Warning: OBSERVED_AREA not taken into account.
 -- ---------------------------------------
 create or replace function datastreams_update_delete()
   returns trigger as
@@ -289,7 +254,7 @@ declare
 "MDS_ROW" "MULTI_DATASTREAMS"%rowtype;
 begin
 
-if (OLD."DATASTREAM_ID" is not null) 
+if (OLD."DATASTREAM_ID" is not null)
 then
 	select * into "DS_ROW" from "DATASTREAMS" where "DATASTREAMS"."ID"=OLD."DATASTREAM_ID";
 
@@ -319,7 +284,7 @@ then
 
 end if;	
 
-if (OLD."MULTI_DATASTREAM_ID" is not null) 
+if (OLD."MULTI_DATASTREAM_ID" is not null)
 then
 	select * into "MDS_ROW" from "MULTI_DATASTREAMS" where "MULTI_DATASTREAMS"."ID"=OLD."MULTI_DATASTREAM_ID";
 
