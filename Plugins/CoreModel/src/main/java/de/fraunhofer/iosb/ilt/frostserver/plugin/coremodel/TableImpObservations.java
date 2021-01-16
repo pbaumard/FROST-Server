@@ -264,7 +264,7 @@ public class TableImpObservations<J extends Comparable> extends StaTableAbstract
             JsonFieldFactory jsonFactory = jsonFieldFromPath(mainField, epCustomSelect);
             return propertyFieldForJsonField(jsonFactory, epCustomSelect);
         }
-        return null;
+        return super.handleEntityPropertyCustomSelect(epCustomSelect);
     }
 
     @Override

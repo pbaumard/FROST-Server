@@ -175,7 +175,7 @@ public class TableImpTaskingCapabilities<J extends Comparable> extends StaTableA
             JsonFieldFactory jsonFactory = jsonFieldFromPath(mainField, epCustomSelect);
             return propertyFieldForJsonField(jsonFactory, epCustomSelect);
         }
-        return null;
+        return super.handleEntityPropertyCustomSelect(epCustomSelect);
     }
 
     @Override

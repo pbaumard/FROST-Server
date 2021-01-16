@@ -176,7 +176,7 @@ public class TableImpFeatures<J extends Comparable> extends StaTableAbstract<J, 
             JsonFieldFactory jsonFactory = jsonFieldFromPath(mainField, epCustomSelect);
             return propertyFieldForJsonField(jsonFactory, epCustomSelect);
         }
-        return null;
+        return super.handleEntityPropertyCustomSelect(epCustomSelect);
     }
 
     @Override
