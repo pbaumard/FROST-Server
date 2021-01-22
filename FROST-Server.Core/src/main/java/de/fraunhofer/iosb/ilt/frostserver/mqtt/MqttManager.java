@@ -49,7 +49,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -59,12 +58,13 @@ import org.slf4j.LoggerFactory;
 /**
  *
  * @author Michael Jacoby
+ * @author scf
  */
 public class MqttManager implements SubscriptionListener, MessageListener, EntityCreateListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MqttManager.class);
 
-    private final Map<EntityType, Map<Subscription, AtomicInteger>> subscriptions = new HashMap<>();
+    private final Map<EntityType, SubscriptionManager> subscriptions = new HashMap<>();
     private final CoreSettings settings;
     private final SubscriptionFactory subscriptionFactory;
 
@@ -89,14 +89,16 @@ public class MqttManager implements SubscriptionListener, MessageListener, Entit
         }
         this.settings = settings;
         subscriptionFactory = new SubscriptionFactory(settings);
-        final ModelRegistry modelRegistry = settings.getModelRegistry();
-        for (EntityType entityType : modelRegistry.getEntityTypes()) {
-            subscriptions.put(entityType, new ConcurrentHashMap<>());
-        }
+
         init();
     }
 
     private void init() {
+        final ModelRegistry modelRegistry = settings.getModelRegistry();
+        for (EntityType entityType : modelRegistry.getEntityTypes()) {
+            subscriptions.put(entityType, new SubscriptionManager(entityType, this, topicCount));
+        }
+
         MqttSettings mqttSettings = settings.getMqttSettings();
         if (mqttSettings.isEnableMqtt()) {
             enabledMqtt = true;
@@ -160,25 +162,19 @@ public class MqttManager implements SubscriptionListener, MessageListener, Entit
         if (!subscriptions.containsKey(entityType)) {
             return;
         }
-        // Send a complete entity through the bus, or just an entity-id?
+
         Entity entity = message.getEntity();
         Set<Property> fields = message.getFields();
         try (PersistenceManager persistenceManager = PersistenceManagerFactory.getInstance(settings).create()) {
-            // for each subscription on EntityType check match
-            for (Subscription subscription : subscriptions.get(entityType).keySet()) {
-                if (subscription.matches(persistenceManager, entity, fields)) {
-                    notifySubscription(subscription, entity);
-                }
-            }
+            subscriptions.get(entityType).handleEntityChanged(persistenceManager, entity, fields);
         } catch (Exception ex) {
             LOGGER.error("error handling MQTT subscriptions", ex);
         }
     }
 
-    private void notifySubscription(Subscription subscription, Entity entity) {
+    public void notifySubscription(Subscription subscription, Entity entity) {
         final String topic = subscription.getTopic();
         try {
-            LOGGER.trace("Notifying Topic {}", topic);
             String payload = subscription.formatMessage(entity);
             server.publish(topic, payload.getBytes(StringHelper.UTF8), settings.getMqttSettings().getQosLevel());
         } catch (IOException ex) {
@@ -232,19 +228,9 @@ public class MqttManager implements SubscriptionListener, MessageListener, Entit
             return;
         }
 
-        Map<Subscription, AtomicInteger> subscriptionsMap = subscriptions.get(subscription.getEntityType());
-        synchronized (subscriptionsMap) {
-            AtomicInteger clientCount = subscriptionsMap.get(subscription);
-            if (clientCount == null) {
-                clientCount = new AtomicInteger(1);
-                subscriptionsMap.put(subscription, clientCount);
-                logStatus.setTopicCount(topicCount.incrementAndGet());
-                LOGGER.debug("Created new subscription for topic {}.", subscription.getTopic());
-            } else {
-                int newCount = clientCount.incrementAndGet();
-                LOGGER.debug("Now {} subscriptions for topic {}.", newCount, subscription.getTopic());
-            }
-        }
+        subscriptions.get(subscription.getEntityType())
+                .addSubscription(subscription);
+        logStatus.setTopicCount(topicCount.get());
     }
 
     @Override
@@ -254,19 +240,9 @@ public class MqttManager implements SubscriptionListener, MessageListener, Entit
             // Not a valid topic.
             return;
         }
-        final Map<Subscription, AtomicInteger> subscriptionsMap = subscriptions.get(subscription.getEntityType());
-        synchronized (subscriptionsMap) {
-            AtomicInteger clientCount = subscriptionsMap.get(subscription);
-            if (clientCount != null) {
-                int newCount = clientCount.decrementAndGet();
-                LOGGER.debug("Now {} subscriptions for topic {}.", newCount, subscription.getTopic());
-                if (newCount <= 0) {
-                    subscriptionsMap.remove(subscription);
-                    logStatus.setTopicCount(topicCount.decrementAndGet());
-                    LOGGER.debug("Removed last subscription for topic {}.", subscription.getTopic());
-                }
-            }
-        }
+        subscriptions.get(subscription.getEntityType())
+                .removeSubscription(subscription);
+        logStatus.setTopicCount(topicCount.get());
     }
 
     @Override
