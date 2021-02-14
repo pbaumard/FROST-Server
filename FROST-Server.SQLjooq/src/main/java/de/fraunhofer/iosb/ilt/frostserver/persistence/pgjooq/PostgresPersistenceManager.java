@@ -101,7 +101,7 @@ public abstract class PostgresPersistenceManager<J extends Comparable> extends A
         this.tableCollection = tableCollection;
         getTableCollection().setModelRegistry(settings.getModelRegistry());
         Settings customSettings = settings.getPersistenceSettings().getCustomSettings();
-        connectionProvider = new ConnectionWrapper(customSettings);
+        connectionProvider = new ConnectionWrapper(customSettings, "FROST-Source");
         entityFactories = new EntityFactories(settings.getModelRegistry(), idManager, tableCollection);
     }
 
