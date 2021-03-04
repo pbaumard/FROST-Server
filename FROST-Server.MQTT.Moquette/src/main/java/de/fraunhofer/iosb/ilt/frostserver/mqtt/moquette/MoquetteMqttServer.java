@@ -30,6 +30,9 @@ import de.fraunhofer.iosb.ilt.frostserver.settings.annotation.DefaultValue;
 import de.fraunhofer.iosb.ilt.frostserver.settings.annotation.DefaultValueInt;
 import de.fraunhofer.iosb.ilt.frostserver.util.StringHelper;
 import io.moquette.BrokerConstants;
+import io.moquette.broker.Server;
+import io.moquette.broker.config.IConfig;
+import io.moquette.broker.config.MemoryConfig;
 import io.moquette.interception.AbstractInterceptHandler;
 import io.moquette.interception.InterceptHandler;
 import io.moquette.interception.messages.InterceptConnectMessage;
@@ -37,11 +40,14 @@ import io.moquette.interception.messages.InterceptDisconnectMessage;
 import io.moquette.interception.messages.InterceptPublishMessage;
 import io.moquette.interception.messages.InterceptSubscribeMessage;
 import io.moquette.interception.messages.InterceptUnsubscribeMessage;
-import io.moquette.server.Server;
-import io.moquette.server.config.IConfig;
-import io.moquette.server.config.MemoryConfig;
-import io.moquette.spi.impl.subscriptions.Subscription;
-import java.io.IOException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.handler.codec.mqtt.MqttFixedHeader;
+import io.netty.handler.codec.mqtt.MqttMessageType;
+import io.netty.handler.codec.mqtt.MqttPublishMessage;
+import io.netty.handler.codec.mqtt.MqttPublishVariableHeader;
+import io.netty.handler.codec.mqtt.MqttQoS;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,10 +57,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import javax.swing.event.EventListenerList;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,8 +73,6 @@ public class MoquetteMqttServer implements MqttServer, ConfigDefaults {
     public static final String TAG_WEBSOCKET_PORT = "WebsocketPort";
     @DefaultValueInt(50)
     public static final String TAG_MAX_IN_FLIGHT = "maxInFlight";
-    @DefaultValue("io.moquette.persistence.mapdb.MapDBPersistentStore")
-    public static final String STORAGE_CLASS_NAME = BrokerConstants.STORAGE_CLASS_NAME;
     @DefaultValue("")
     public static final String TAG_KEYSTORE_PATH = "javaKeystorePath";
     @DefaultValue("")
@@ -83,6 +83,10 @@ public class MoquetteMqttServer implements MqttServer, ConfigDefaults {
     public static final String TAG_SSL_PORT = "sslPort";
     @DefaultValueInt(443)
     public static final String TAG_SSL_WEBSOCKET_PORT = "secureWebsocketPort";
+    @DefaultValue("memory")
+    public static final String TAG_PERSISTENT_STORE_TYPE = "persistentStoreType";
+
+    private static final String VALUE_STORE_TYPE_H2 = "h2";
 
     /**
      * The logger for this class.
@@ -90,7 +94,6 @@ public class MoquetteMqttServer implements MqttServer, ConfigDefaults {
     private static final Logger LOGGER = LoggerFactory.getLogger(MoquetteMqttServer.class);
 
     private Server mqttBroker;
-    private MqttClient client;
     protected EventListenerList subscriptionListeners = new EventListenerList();
     protected EventListenerList entityCreateListeners = new EventListenerList();
     private CoreSettings settings;
@@ -111,23 +114,13 @@ public class MoquetteMqttServer implements MqttServer, ConfigDefaults {
     }
 
     @Override
-    public void publish(String topic, byte[] payload, int qos) {
-        if (mqttBroker != null && client != null) {
-            if (!client.isConnected()) {
-                LOGGER.warn("MQTT client is not connected while trying to publish.");
-                try {
-                    client.reconnect();
-                } catch (MqttException ex) {
-                    LOGGER.warn("MQTT client failed to reconnect.");
-                    return;
-                }
-            }
-            try {
-                LOGGER.trace("    FROST -> Moquette on {}", topic);
-                client.publish(topic, payload, qos, false);
-            } catch (MqttException ex) {
-                LOGGER.error("publish on topic '{}' failed.", topic, ex);
-            }
+    public void publish(String topic, String message, int qos) {
+        if (mqttBroker != null) {
+            final ByteBuf payload = ByteBufUtil.writeUtf8(UnpooledByteBufAllocator.DEFAULT, message);
+            MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, MqttQoS.valueOf(qos), false, 0);
+            MqttPublishVariableHeader varHeader = new MqttPublishVariableHeader(topic, 0);
+            MqttPublishMessage mqttPublishMessage = new MqttPublishMessage(fixedHeader, varHeader, payload);
+            mqttBroker.internalPublish(mqttPublishMessage, frostClientId);
         }
     }
 
@@ -182,16 +175,18 @@ public class MoquetteMqttServer implements MqttServer, ConfigDefaults {
         MqttSettings mqttSettings = settings.getMqttSettings();
         Settings customSettings = mqttSettings.getCustomSettings();
 
+        boolean flushImmediate = customSettings.getBoolean(BrokerConstants.IMMEDIATE_BUFFER_FLUSH_PROPERTY_NAME, true);
+        config.setProperty(BrokerConstants.IMMEDIATE_BUFFER_FLUSH_PROPERTY_NAME, Boolean.toString(flushImmediate));
         config.setProperty(BrokerConstants.PORT_PROPERTY_NAME, Integer.toString(mqttSettings.getPort()));
         config.setProperty(BrokerConstants.HOST_PROPERTY_NAME, mqttSettings.getHost());
         config.setProperty(BrokerConstants.ALLOW_ANONYMOUS_PROPERTY_NAME, Boolean.TRUE.toString());
 
-        String defaultPersistentStore = Paths.get(settings.getTempPath(), BrokerConstants.DEFAULT_MOQUETTE_STORE_MAP_DB_FILENAME).toString();
-        String persistentStore = customSettings.get(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME, defaultPersistentStore);
-        config.setProperty(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME, persistentStore);
-
-        String storageClass = customSettings.get(STORAGE_CLASS_NAME, getClass());
-        config.setProperty(BrokerConstants.STORAGE_CLASS_NAME, storageClass);
+        String persistentStoreType = customSettings.get(TAG_PERSISTENT_STORE_TYPE, getClass());
+        if (VALUE_STORE_TYPE_H2.equalsIgnoreCase(persistentStoreType)) {
+            String defaultPersistentStore = Paths.get(settings.getTempPath(), BrokerConstants.DEFAULT_MOQUETTE_STORE_H2_DB_FILENAME).toString();
+            String persistentStore = customSettings.get(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME, defaultPersistentStore);
+            config.setProperty(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME, persistentStore);
+        }
         config.setProperty(BrokerConstants.WEB_SOCKET_PORT_PROPERTY_NAME, customSettings.get(TAG_WEBSOCKET_PORT, getClass()));
 
         String keystorePath = customSettings.get(TAG_KEYSTORE_PATH, getClass());
@@ -206,28 +201,7 @@ public class MoquetteMqttServer implements MqttServer, ConfigDefaults {
 
         AuthWrapper authWrapper = createAuthWrapper();
 
-        int maxInFlight = customSettings.getInt(TAG_MAX_IN_FLIGHT, getClass());
-        try {
-            mqttBroker.startServer(config, userHandlers, null, authWrapper, authWrapper);
-            String broker = "tcp://" + mqttSettings.getInternalHost() + ":" + mqttSettings.getPort();
-
-            client = new MqttClient(broker, frostClientId, new MemoryPersistence());
-            MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setCleanSession(true);
-            connOpts.setAutomaticReconnect(true);
-            connOpts.setKeepAliveInterval(30);
-            connOpts.setConnectionTimeout(30);
-            connOpts.setMaxInflight(maxInFlight);
-            LOGGER.info("paho-client connecting to broker: {} with clientId {}", broker, frostClientId);
-
-            client.connect(connOpts);
-            LOGGER.info("paho-client connected to broker");
-        } catch (MqttException ex) {
-            LOGGER.error("Could not create MQTT Client.", ex);
-        } catch (IOException ex) {
-            LOGGER.error("Could not create MQTT Server.", ex);
-        }
-        fetchOldSubscriptions();
+        mqttBroker.startServer(config, userHandlers, null, authWrapper, authWrapper);
     }
 
     private AuthWrapper createAuthWrapper() {
@@ -239,50 +213,8 @@ public class MoquetteMqttServer implements MqttServer, ConfigDefaults {
         return null;
     }
 
-    private void fetchOldSubscriptions() {
-        LOGGER.info("Checking for pre-existing subscriptions.");
-        int count = 0;
-        for (Subscription sub : mqttBroker.getSubscriptions()) {
-            String subClientId = sub.getClientId();
-            if (subClientId.equalsIgnoreCase(frostClientId)) {
-                continue;
-            }
-            String topic = sub.getTopicFilter().toString();
-            LOGGER.debug("Re-subscribing existing subscription for {} on {}.", subClientId, topic);
-            List<String> clientSubList = clientSubscriptions.computeIfAbsent(
-                    subClientId,
-                    k -> new ArrayList<>()
-            );
-            try {
-                fireSubscribe(new SubscriptionEvent(topic));
-                clientSubList.add(topic);
-            } catch (IllegalArgumentException e) {
-                LOGGER.warn("Exception initialising old subscription for client {} to topic {}", subClientId, topic, e);
-            }
-            count++;
-        }
-        LOGGER.info("Found {} pre-existing subscriptions.", count);
-    }
-
     @Override
     public void stop() {
-        if (client != null && client.isConnected()) {
-            LOGGER.info("Disconnecting internal MQTT client...");
-            try {
-                client.disconnectForcibly();
-            } catch (MqttException ex) {
-                LOGGER.debug("exception when forcefully disconnecting MQTT client", ex);
-            }
-        }
-        if (client != null) {
-            LOGGER.info("Closing internal MQTT client...");
-            try {
-                client.close();
-            } catch (MqttException ex) {
-                LOGGER.debug("exception when closing the MQTT client", ex);
-            }
-            LOGGER.info("Closing internal MQTT client done.");
-        }
         if (mqttBroker != null) {
             mqttBroker.stopServer();
         }

@@ -64,7 +64,7 @@ public abstract class AbstractSubscription implements Subscription {
     protected ResourcePath path;
     protected CoreSettings settings;
 
-    public AbstractSubscription(String topic, ResourcePath path, CoreSettings settings) {
+    protected AbstractSubscription(String topic, ResourcePath path, CoreSettings settings) {
         this.topic = topic;
         this.path = path;
         this.settings = settings;

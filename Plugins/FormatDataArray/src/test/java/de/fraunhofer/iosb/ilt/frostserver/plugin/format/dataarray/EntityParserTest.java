@@ -85,8 +85,14 @@ public class EntityParserTest {
         Entity ds1 = new DefaultEntity(pluginCoreModel.etDatastream).setId(new IdLong(1L));
 
         DataArrayValue dav1 = new DataArrayValue(ds1, components, pluginCoreModel.etDatastream);
-        dav1.getDataArray().add(Arrays.asList(new Object[]{"2010-12-23T10:20:00-0700", 20, 1}));
-        dav1.getDataArray().add(Arrays.asList(new Object[]{"2010-12-23T10:21:00-0700", 30, 1}));
+        dav1.newItemList()
+                .addItemToTail("2010-12-23T10:20:00-0700")
+                .addItemToTail(20)
+                .addItemToTail(1);
+        dav1.newItemList()
+                .addItemToTail("2010-12-23T10:21:00-0700")
+                .addItemToTail(30)
+                .addItemToTail(1);
 
         Entity ds2 = new DefaultEntity(pluginCoreModel.etDatastream).setId(new IdLong(2L));
 

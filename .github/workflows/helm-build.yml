@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cache maven repository
-      uses: actions/cache@v2
+      uses: actions/cache@v2.1.4
       with:
         path: |
           ~/.m2/repository
@@ -41,7 +41,7 @@ jobs:
         tar xzf /tmp/helm.tar.gz -C /tmp --strip-components=1
         chmod +x /tmp/helm
 
-    - name: Build Helm
+    - name: Build and upload Helm
       run: |
         source ./helm/build.sh
         source ./helm/upload.sh

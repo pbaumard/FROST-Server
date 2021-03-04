@@ -30,7 +30,9 @@ public enum Extension {
     CORE(
             "http://www.opengis.net/spec/iot_sensing/1.1/req/resource-path/resource-path-to-entities",
             "http://www.opengis.net/spec/iot_sensing/1.1/req/request-data",
-            "http://www.opengis.net/spec/iot_sensing/1.1/req/create-update-delete"
+            "http://www.opengis.net/spec/iot_sensing/1.1/req/create-update-delete",
+            "https://fraunhoferiosb.github.io/FROST-Server/extensions/DeepSelect.html",
+            "https://fraunhoferiosb.github.io/FROST-Server/extensions/SelectDistinct.html"
     ),
     MQTT(
             "http://www.opengis.net/spec/iot_sensing/1.1/req/create-observations-via-mqtt/observations-creation",

@@ -23,7 +23,7 @@ import de.fraunhofer.iosb.ilt.frostserver.model.ModelRegistry;
 import de.fraunhofer.iosb.ilt.frostserver.model.core.Entity;
 import de.fraunhofer.iosb.ilt.frostserver.model.core.IdString;
 import de.fraunhofer.iosb.ilt.frostserver.plugin.coremodel.PluginCoreModel;
-import static de.fraunhofer.iosb.ilt.frostserver.plugin.format.dataarray.DataArrayValue.LIST_OF_DATAARRAYVALUE;
+import de.fraunhofer.iosb.ilt.frostserver.plugin.format.dataarray.json.DataArrayDeserializer;
 import de.fraunhofer.iosb.ilt.frostserver.plugin.multidatastream.PluginMultiDatastream;
 import de.fraunhofer.iosb.ilt.frostserver.query.QueryDefaults;
 import de.fraunhofer.iosb.ilt.frostserver.settings.CoreSettings;
@@ -39,7 +39,7 @@ import org.junit.Test;
  *
  * @author jab
  */
-public class EntityParserTestStringId {
+public class EntityParserStringIdTest {
 
     private static CoreSettings coreSettings;
     private static QueryDefaults queryDefaults;
@@ -120,7 +120,7 @@ public class EntityParserTestStringId {
         expectedResult.add(dav1);
         expectedResult.add(dav2);
         expectedResult.add(dav3);
-        List<DataArrayValue> result = entityParser.parseObject(LIST_OF_DATAARRAYVALUE, json);
+        List<DataArrayValue> result = DataArrayDeserializer.deserialize(json, entityParser, coreSettings);
         assertEquals(expectedResult, result);
     }
 

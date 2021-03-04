@@ -4,6 +4,7 @@ on:
   push:
     tags:
     - "v[0-9]+.[0-9]+"
+    - "v[0-9]+.[0-9]+.[0-9]+"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -34,7 +35,7 @@ jobs:
         java-version: 11
 
     - name: Cache maven repository
-      uses: actions/cache@v2
+      uses: actions/cache@v2.1.4
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -51,10 +52,13 @@ jobs:
     - name: Build Docker Images
       run: |
         mvn -B dockerfile:build -pl FROST-Server.HTTP,FROST-Server.MQTT,FROST-Server.MQTTP
-        mvn -B dockerfile:tag@tag-version -pl FROST-Server.HTTP,FROST-Server.MQTT,FROST-Server.MQTTP
 
     - name: Push Docker Image - version
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      run: mvn -B dockerfile:push@push-version -Ddockerfile.useMavenSettingsForAuth=true -pl FROST-Server.HTTP,FROST-Server.MQTT,FROST-Server.MQTTP --settings maven-ci-settings.xml
+      run: |
+        export DOCKER_TAG=$(mvn -Dexec.executable='echo' -Dexec.args='${project.version}' --non-recursive exec:exec -q)
+        echo "Tagging and Pushing ${DOCKER_TAG}"
+        mvn -B dockerfile:tag@tag-version -pl FROST-Server.HTTP,FROST-Server.MQTT,FROST-Server.MQTTP
+        mvn -B dockerfile:push@push-version -Ddockerfile.useMavenSettingsForAuth=true -pl FROST-Server.HTTP,FROST-Server.MQTT,FROST-Server.MQTTP --settings maven-ci-settings.xml

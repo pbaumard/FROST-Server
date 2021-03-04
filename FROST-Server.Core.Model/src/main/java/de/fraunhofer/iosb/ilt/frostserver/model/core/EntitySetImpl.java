@@ -83,7 +83,7 @@ public class EntitySetImpl implements EntitySet {
     }
 
     @Override
-    public <T> T[] toArray(T[] a) {
+    public <A> A[] toArray(A[] a) {
         return data.toArray(a);
     }
 

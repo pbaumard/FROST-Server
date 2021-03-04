@@ -1,4 +1,4 @@
-name: Maven Pull Request Build
+name: Helm Build
 
 on:
   pull_request:
@@ -31,13 +31,14 @@ jobs:
       with:
         java-version: 11
 
-    - name: Build with Maven
-      run: |
-        mvn -B install -DskipTests -Dmaven.javadoc.skip=true
-
-    - name: Test with Sonar
+    - name: Set up Helm
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        HELM_VERSION: "v3.4.2"
       run: |
-        mvn -B verify sonar:sonar -Dsonar.projectKey=FraunhoferIOSB_FROST-Server -Dmaven.javadoc.skip=true -P coverage
+        wget https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz -O /tmp/helm.tar.gz
+        tar xzf /tmp/helm.tar.gz -C /tmp --strip-components=1
+        chmod +x /tmp/helm
+
+    - name: Build Helm
+      run: |
+        source ./helm/build.sh

@@ -21,6 +21,7 @@ import de.fraunhofer.iosb.ilt.frostserver.model.EntityType;
 import de.fraunhofer.iosb.ilt.frostserver.model.ModelRegistry;
 import de.fraunhofer.iosb.ilt.frostserver.model.core.Entity;
 import de.fraunhofer.iosb.ilt.frostserver.model.core.EntitySet;
+import de.fraunhofer.iosb.ilt.frostserver.property.EntityPropertyCustomSelect;
 import de.fraunhofer.iosb.ilt.frostserver.property.EntityPropertyMain;
 import de.fraunhofer.iosb.ilt.frostserver.property.NavigationProperty;
 import de.fraunhofer.iosb.ilt.frostserver.property.Property;
@@ -60,6 +61,17 @@ public class CsvElementSet {
     }
 
     public void initFrom(Set<Property> properties, Query query) {
+        initProperties(properties);
+        if (query == null) {
+            return;
+        }
+        for (Expand expand : query.getExpand()) {
+            NavigationProperty path = expand.getPath();
+            initFrom(path, expand.getSubQuery());
+        }
+    }
+
+    private void initProperties(Set<Property> properties) {
         for (Property property : properties) {
             if (property == ModelRegistry.EP_SELFLINK) {
                 continue;
@@ -68,14 +80,9 @@ public class CsvElementSet {
                 initFromUnitOfMeasurement();
             } else if (property instanceof EntityPropertyMain) {
                 initFrom((EntityPropertyMain) property);
+            } else if (property instanceof EntityPropertyCustomSelect) {
+                initFrom((EntityPropertyCustomSelect) property);
             }
-        }
-        if (query == null) {
-            return;
-        }
-        for (Expand expand : query.getExpand()) {
-            NavigationProperty path = expand.getPath();
-            initFrom(path, expand.getSubQuery());
         }
     }
 
@@ -86,6 +93,11 @@ public class CsvElementSet {
 
     public void initFrom(EntityPropertyMain property) {
         CsvEntityEntry element = new CsvEntityProperty(namePrefix + property.name, property);
+        elements.add(element);
+    }
+
+    public void initFrom(EntityPropertyCustomSelect property) {
+        CsvEntityEntry element = new CsvEntityProperty(namePrefix + property.getName(), property);
         elements.add(element);
     }
 

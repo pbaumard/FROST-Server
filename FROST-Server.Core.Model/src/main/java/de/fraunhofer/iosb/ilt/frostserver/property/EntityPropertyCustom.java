@@ -36,7 +36,7 @@ public class EntityPropertyCustom implements EntityProperty<Object> {
 
     public EntityPropertyCustom(String name) {
         String finalName = name;
-        Integer realIndex = null;
+        Integer realIndex;
         if (finalName.startsWith("[") && finalName.endsWith("]")) {
             try {
                 realIndex = Integer.parseInt(finalName.substring(1, finalName.length() - 1));
@@ -48,7 +48,7 @@ public class EntityPropertyCustom implements EntityProperty<Object> {
         this.name = finalName;
     }
 
-    public EntityPropertyCustom(Integer index) {
+    public EntityPropertyCustom() {
         this.name = null;
     }
 

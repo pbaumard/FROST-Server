@@ -4,7 +4,7 @@
     <parent>
         <groupId>de.fraunhofer.iosb.ilt.FROST-Server</groupId>
         <artifactId>FROST-ServerParent</artifactId>
-        <version>1.13.0-SNAPSHOT</version>
+        <version>1.14.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>FROST-Server.MQTTP</artifactId>
@@ -146,7 +146,7 @@
                             <goal>tag</goal>
                         </goals>
                         <configuration>
-                            <tag>${env.TAG}</tag>
+                            <tag>${env.DOCKER_TAG}</tag>
                         </configuration>
                     </execution>
                     <execution>
@@ -166,7 +166,7 @@
                             <goal>push</goal>
                         </goals>
                         <configuration>
-                            <tag>${env.TAG}</tag>
+                            <tag>${env.DOCKER_TAG}</tag>
                         </configuration>
                     </execution>
                 </executions>
