@@ -78,7 +78,6 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 /**
  *
@@ -333,7 +332,7 @@ public class TestSuite {
         mqttServers.put(parameters, server);
     }
 
-    public  void stopServer(Properties parameters) {
+    public void stopServer(Properties parameters) {
         if (!httpServers.containsKey(parameters)) {
             return;
         }
